@@ -109,7 +109,7 @@ export class NavbarCardEditor extends LitElement {
     this._slotRefs.forEach((r, idx) => {
       if (r.value && !this._slotEditing.has(idx)) {
         const slot = this._stored?.slots?.bottom?.[idx];
-        if (slot) r.value.value = this._slotToYaml(slot as Record<string, unknown>);
+        if (slot) r.value.value = this._slotToFullYaml(slot as Record<string, unknown>);
       }
     });
   }
@@ -704,8 +704,8 @@ export class NavbarCardEditor extends LitElement {
       <div class="section">
         <div class="section-title">Bottom slots</div>
         <span class="hint" style="display:block;margin-bottom:8px;">
-          Slot cards are rendered below the tiles. Use any Lovelace card type,
-          e.g. <code>custom:alert-ticker-card</code>.
+          Vlož celý YAML karty (včetně řádku <code>type:</code>).
+          Uloží se při kliknutí mimo pole.
         </span>
 
         ${slots.map((slot, idx) => html`
@@ -715,31 +715,20 @@ export class NavbarCardEditor extends LitElement {
               <button class="icon-btn danger" title="Remove"
                 @click=${() => this._deleteSlot(idx)}>✕</button>
             </div>
-            <div class="field" style="margin-top:6px;">
-              <label>Card type</label>
-              <input type="text"
-                .value=${slot.type}
-                placeholder="custom:alert-ticker-card"
-                @input=${(e: Event) => this._patchSlot(idx, "type", (e.target as HTMLInputElement).value)}
-              />
-            </div>
-            <div class="field" style="margin-top:4px;">
-              <label>YAML config (bez řádku type:)</label>
-              <textarea rows="6" style="
-                width:100%;padding:6px 8px;box-sizing:border-box;
-                background:rgba(var(--rgb-primary-text-color,255,255,255),0.05);
-                border:1px solid rgba(var(--rgb-primary-text-color,255,255,255),0.12);
-                border-radius:6px;color:var(--primary-text-color);font-size:11px;
-                font-family:monospace;resize:vertical;outline:none;
-              "
-                ${ref(this._getSlotRef(idx))}
-                @focus=${() => this._slotEditing.add(idx)}
-                @blur=${(e: Event) => {
-                  this._slotEditing.delete(idx);
-                  this._patchSlotJson(idx, (e.target as HTMLTextAreaElement).value);
-                }}
-              ></textarea>
-            </div>
+            <textarea rows="10" style="
+              width:100%;padding:6px 8px;box-sizing:border-box;margin-top:6px;
+              background:rgba(var(--rgb-primary-text-color,255,255,255),0.05);
+              border:1px solid rgba(var(--rgb-primary-text-color,255,255,255),0.12);
+              border-radius:6px;color:var(--primary-text-color);font-size:11px;
+              font-family:monospace;resize:vertical;outline:none;
+            "
+              ${ref(this._getSlotRef(idx))}
+              @focus=${() => this._slotEditing.add(idx)}
+              @blur=${(e: Event) => {
+                this._slotEditing.delete(idx);
+                this._patchSlotFull(idx, (e.target as HTMLTextAreaElement).value);
+              }}
+            ></textarea>
           </div>
         `)}
 
@@ -748,37 +737,28 @@ export class NavbarCardEditor extends LitElement {
     `;
   }
 
-  private _slotToYaml(slot: Record<string, unknown>): string {
-    const { type: _t, ...rest } = slot;
-    if (!Object.keys(rest).length) return "";
-    // Prefer js-yaml if HA loaded it, else JSON fallback
+  /** Convert stored slot object → full YAML string including type: line */
+  private _slotToFullYaml(slot: Record<string, unknown>): string {
     const jsyaml = (window as unknown as Record<string, unknown>).jsyaml as { dump?: (v: unknown) => string } | undefined;
-    if (jsyaml?.dump) return jsyaml.dump(rest).trimEnd();
-    return JSON.stringify(rest, null, 2);
+    if (jsyaml?.dump) return jsyaml.dump(slot).trimEnd();
+    return JSON.stringify(slot, null, 2);
   }
 
-  private _parseYamlOrJson(raw: string): Record<string, unknown> {
+  /** Parse full YAML (with type:) and save */
+  private _patchSlotFull(idx: number, raw: string): void {
     const trimmed = raw.trim();
-    if (!trimmed) return {};
-    const jsyaml = (window as unknown as Record<string, unknown>).jsyaml as { load?: (v: string) => unknown } | undefined;
-    if (jsyaml?.load) return jsyaml.load(trimmed) as Record<string, unknown>;
-    return JSON.parse(trimmed) as Record<string, unknown>;
-  }
-
-  private _patchSlot(idx: number, key: string, value: string): void {
-    const slots = [...(this._stored?.slots?.bottom ?? [])];
-    slots[idx] = { ...slots[idx], [key]: value };
-    this._patchStored({ slots: { bottom: slots } });
-  }
-
-  private _patchSlotJson(idx: number, raw: string): void {
+    if (!trimmed) return;
     const slots = [...(this._stored?.slots?.bottom ?? [])];
     try {
-      const parsed = this._parseYamlOrJson(raw);
-      slots[idx] = { type: slots[idx].type, ...parsed };
+      const jsyaml = (window as unknown as Record<string, unknown>).jsyaml as { load?: (v: string) => unknown } | undefined;
+      const parsed = jsyaml?.load
+        ? jsyaml.load(trimmed) as Record<string, unknown>
+        : JSON.parse(trimmed) as Record<string, unknown>;
+      if (!parsed.type) return; // type je povinný
+      slots[idx] = parsed as import("./types").SlotItemConfig;
       this._patchStored({ slots: { bottom: slots } });
     } catch {
-      // invalid YAML/JSON – ignore
+      // neplatný YAML – ignoruj
     }
   }
 
