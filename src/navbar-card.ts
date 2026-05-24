@@ -35,6 +35,7 @@ import {
 import { filterToCSS, FILTER_PRESETS } from "./filters";
 import { getAutoThresholds, getAutoUnit } from "./sensor-defaults";
 import { openPopup } from "./popup";
+import "./navbar-editor";
 
 // Console badge 
 console.info(
@@ -434,7 +435,7 @@ export class NavbarCard extends LitElement {
   }
 
   public static getConfigElement(): HTMLElement {
-    return document.createElement("div");
+    return document.createElement("navbar-card-editor");
   }
 
   public static getStubConfig(): Partial<NavbarCardConfig> {
@@ -446,10 +447,11 @@ declare global {
   interface Window { customCards?: Array<Record<string, unknown>>; }
 }
 window.customCards = window.customCards ?? [];
+window.customCards = window.customCards ?? [];
 window.customCards.push({
   type: CARD_TAG,
   name: "Navbar Card",
   description: "Configurable room navigation card with sensor overlays and popup support.",
   preview: true,
-  documentationURL: "https://github.com/YOUR_USERNAME/navbar",
+  documentationURL: "https://github.com/Michailjovic/Navbar",
 });
