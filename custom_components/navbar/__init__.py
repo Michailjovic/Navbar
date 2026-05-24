@@ -62,7 +62,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             card_file,
         )
 
-    _LOGGER.info("Navbar Card integration ready (v0.0.9)")
+    _LOGGER.info("Navbar Card integration ready (v0.0.10)")
     return True
 
 

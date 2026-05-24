@@ -1,4 +1,4 @@
-export const CARD_VERSION = "0.0.9";
+export const CARD_VERSION = "0.0.10";
 export const CARD_TAG = "navbar-card";
 export const DEFAULT_CONFIG_ID = "default";
 

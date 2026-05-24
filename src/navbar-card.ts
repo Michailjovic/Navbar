@@ -63,6 +63,9 @@ export class NavbarCard extends LitElement {
   private _lastTap: Map<number, number> = new Map();
   private _holdFired: Set<number> = new Set();
 
+  // Slot card elements – created once, hass kept in sync
+  private _slotElements: Map<string, HTMLElement & { setConfig?: (c: Record<string,unknown>) => void; hass?: unknown }> = new Map();
+
   // Lovelace API 
 
   public setConfig(config: NavbarCardConfig): void {
@@ -77,8 +80,12 @@ export class NavbarCard extends LitElement {
 
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
-    if (changed.has("hass") && this.hass && this._loading) {
-      void this._loadConfig();
+    if (changed.has("hass") && this.hass) {
+      if (this._loading) void this._loadConfig();
+      // Keep hass in sync on all slot card elements
+      for (const el of this._slotElements.values()) {
+        el.hass = this.hass;
+      }
     }
   }
 
@@ -371,6 +378,42 @@ export class NavbarCard extends LitElement {
     `;
   }
 
+  // Slot rendering
+
+  private _renderSlots(): TemplateResult | typeof nothing {
+    const slots = this._stored?.slots?.bottom;
+    if (!slots?.length) return nothing;
+
+    return html`
+      <div class="slots-bottom">
+        ${slots.map((slotConfig, idx) => {
+          const key = `bottom-${idx}-${slotConfig.type}`;
+          let el = this._slotElements.get(key);
+
+          if (!el) {
+            const tag = (slotConfig.type as string).startsWith("custom:")
+              ? (slotConfig.type as string).slice(7)
+              : (slotConfig.type as string);
+
+            el = document.createElement(tag) as unknown as typeof el;
+
+            if (typeof el!.setConfig === "function") {
+              try {
+                el!.setConfig(slotConfig as Record<string, unknown>);
+              } catch (e) {
+                console.warn("[navbar-card] slot setConfig failed:", e);
+              }
+            }
+            el!.hass = this.hass;
+            this._slotElements.set(key, el!);
+          }
+
+          return html`<div class="slot-item" .slotEl=${el}>${el}</div>`;
+        })}
+      </div>
+    `;
+  }
+
   // Main render
 
   protected render(): TemplateResult | typeof nothing {
@@ -400,6 +443,7 @@ export class NavbarCard extends LitElement {
           ${this._stored.tiles.map((tile, idx) => this._renderTile(tile, idx))}
         </div>
         ${this._standalone ? html`<div class="mode-badge">standalone</div>` : nothing}
+        ${this._renderSlots()}
       </div>
     `;
   }
@@ -434,6 +478,15 @@ export class NavbarCard extends LitElement {
         color: var(--primary-text-color);
         letter-spacing: 0.5px; text-transform: uppercase;
       }
+      .slots-bottom {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 2px;
+      }
+      .slot-item {
+        display: block;
+      }
     `;
   }
 
@@ -449,7 +502,6 @@ export class NavbarCard extends LitElement {
 declare global {
   interface Window { customCards?: Array<Record<string, unknown>>; }
 }
-window.customCards = window.customCards ?? [];
 window.customCards = window.customCards ?? [];
 window.customCards.push({
   type: CARD_TAG,

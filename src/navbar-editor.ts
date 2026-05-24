@@ -67,7 +67,7 @@ export class NavbarCardEditor extends LitElement {
 
   @state() private _stored: StoredNavbarConfig | null = null;
   @state() private _availableConfigs: string[] = [];
-  @state() private _tab: "config" | "tiles" = "config";
+  @state() private _tab: "config" | "tiles" | "slots" = "config";
   @state() private _expandedTile: number | null = null;
   @state() private _filterTab: Record<number, "on" | "off"> = {};
   @state() private _loading = true;
@@ -269,7 +269,7 @@ export class NavbarCardEditor extends LitElement {
     return html`
       <div class="editor">
         ${this._renderTabs()}
-        ${this._tab === "config" ? this._renderConfigTab() : this._renderTilesTab()}
+        ${this._tab === "config" ? this._renderConfigTab() : this._tab === "tiles" ? this._renderTilesTab() : this._renderSlotsTab()}
         ${this._saving ? html`<div class="saving-badge">Saving...</div>` : nothing}
       </div>
     `;
@@ -288,6 +288,10 @@ export class NavbarCardEditor extends LitElement {
           class="tab ${this._tab === "tiles" ? "active" : ""}"
           @click=${() => { this._tab = "tiles"; }}
         >Tiles (${this._stored?.tiles?.length ?? 0})</button>
+        <button
+          class="tab ${this._tab === "slots" ? "active" : ""}"
+          @click=${() => { this._tab = "slots"; }}
+        >Slots (${this._stored?.slots?.bottom?.length ?? 0})</button>
       </div>
     `;
   }
@@ -672,6 +676,87 @@ export class NavbarCardEditor extends LitElement {
   // Styles
   // -------------------------------------------------------------------------
 
+
+  // ── Slots tab ──────────────────────────────────────────────────────────────
+
+  private _renderSlotsTab(): TemplateResult {
+    const slots = this._stored?.slots?.bottom ?? [];
+    return html`
+      <div class="section">
+        <div class="section-title">Bottom slots</div>
+        <span class="hint" style="display:block;margin-bottom:8px;">
+          Slot cards are rendered below the tiles. Use any Lovelace card type,
+          e.g. <code>custom:alert-ticker-card</code>.
+        </span>
+
+        ${slots.map((slot, idx) => html`
+          <div class="slot-row">
+            <div class="slot-header">
+              <span class="tile-name">${slot.type || "(no type)"}</span>
+              <button class="icon-btn danger" title="Remove"
+                @click=${() => this._deleteSlot(idx)}>✕</button>
+            </div>
+            <div class="field" style="margin-top:6px;">
+              <label>Card type</label>
+              <input type="text"
+                .value=${slot.type}
+                placeholder="custom:alert-ticker-card"
+                @input=${(e: Event) => this._patchSlot(idx, "type", (e.target as HTMLInputElement).value)}
+              />
+            </div>
+            <div class="field" style="margin-top:4px;">
+              <label>Raw config (YAML-style properties as JSON)</label>
+              <textarea rows="4" style="
+                width:100%;padding:6px 8px;box-sizing:border-box;
+                background:rgba(var(--rgb-primary-text-color,255,255,255),0.05);
+                border:1px solid rgba(var(--rgb-primary-text-color,255,255,255),0.12);
+                border-radius:6px;color:var(--primary-text-color);font-size:11px;
+                font-family:monospace;resize:vertical;outline:none;
+              "
+                .value=${this._slotToJson(slot)}
+                @change=${(e: Event) => this._patchSlotJson(idx, (e.target as HTMLTextAreaElement).value)}
+              ></textarea>
+            </div>
+          </div>
+        `)}
+
+        <button class="btn-add" @click=${this._addSlot}>+ Add slot card</button>
+      </div>
+    `;
+  }
+
+  private _slotToJson(slot: Record<string, unknown>): string {
+    const { type: _t, ...rest } = slot;
+    return Object.keys(rest).length ? JSON.stringify(rest, null, 2) : "";
+  }
+
+  private _patchSlot(idx: number, key: string, value: string): void {
+    const slots = [...(this._stored?.slots?.bottom ?? [])];
+    slots[idx] = { ...slots[idx], [key]: value };
+    this._patchStored({ slots: { bottom: slots } });
+  }
+
+  private _patchSlotJson(idx: number, raw: string): void {
+    const slots = [...(this._stored?.slots?.bottom ?? [])];
+    try {
+      const parsed = raw.trim() ? JSON.parse(raw) : {};
+      slots[idx] = { type: slots[idx].type, ...parsed };
+      this._patchStored({ slots: { bottom: slots } });
+    } catch {
+      // invalid JSON – ignore, user is still typing
+    }
+  }
+
+  private _addSlot(): void {
+    const bottom = [...(this._stored?.slots?.bottom ?? []), { type: "custom:alert-ticker-card" }];
+    this._patchStored({ slots: { bottom } });
+  }
+
+  private _deleteSlot(idx: number): void {
+    const bottom = (this._stored?.slots?.bottom ?? []).filter((_, i) => i !== idx);
+    this._patchStored({ slots: { bottom } });
+  }
+
   static get styles() {
     return css`
       :host { display: block; }
@@ -972,6 +1057,20 @@ export class NavbarCardEditor extends LitElement {
       }
       .sensor-entity { flex: 2; }
       .sensor-unit { width: 56px; flex-shrink: 0; }
+
+      /* Slots */
+      .slot-row {
+        border: 1px solid rgba(var(--rgb-primary-text-color,255,255,255),0.08);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+      }
+      .slot-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 4px;
+      }
 
       /* Saving badge */
       .saving-badge {
