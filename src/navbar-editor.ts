@@ -129,8 +129,12 @@ export class NavbarCardEditor extends LitElement {
       this._stored = result;
       this._error = null;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("not_found")) {
+      const haErr = err as Record<string, unknown>;
+      const msg = err instanceof Error
+        ? err.message
+        : (haErr?.message ? String(haErr.message) : (haErr?.code ? String(haErr.code) : String(err)));
+      const code = String(haErr?.code ?? "");
+      if (msg.includes("not_found") || code.includes("not_found")) {
         this._stored = { tiles: [], layout: { columns: 0, gap: 6 } };
       } else {
         this._error = msg;
@@ -1080,6 +1084,19 @@ export class NavbarCardEditor extends LitElement {
         font-size: 10px;
         padding: 2px 8px;
         background: rgba(var(--rgb-primary-text-color,255,255,255),0.1);
+        border-radius: 4px;
+        color: var(--secondary-text-color);
+        letter-spacing: 0.3px;
+      }
+    `;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    "navbar-card-editor": NavbarCardEditor;
+  }
+}
         border-radius: 4px;
         color: var(--secondary-text-color);
         letter-spacing: 0.3px;
