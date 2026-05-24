@@ -1,4 +1,4 @@
-# Navbar Card
+# Navbar Card - Canceled. Prefer to use embeded view card
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![Release](https://img.shields.io/github/v/release/Michailjovic/Navbar)](https://github.com/Michailjovic/Navbar/releases)
