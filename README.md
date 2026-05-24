@@ -179,7 +179,7 @@ npm run lint     # TypeScript type check
 | v0.0.4 | Actions – tap / hold / double-tap, popup engine, config flow GUI |
 | v0.0.5 | Visual card editor (full GUI configuration) |
 | v0.0.6 | HACS frontend plugin fix, README update |
-| v0.0.7 | Slots architecture – alert ticker and companion cards |
+| v0.0.7 | Workflow fix – release assets, correct tag pattern |
 | v1.0.0 | HACS default repository submission |
 
 ---
