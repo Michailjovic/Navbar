@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Navbar Card",
+        "description": "Navbar Card stores your navigation menu configurations server-side so they can be shared across all your dashboards.\n\nClick **Submit** to enable the integration. No further configuration is required."
+      }
+    },
+    "abort": {
+      "already_configured": "Navbar Card is already configured."
+    },
+    "create_entry": {
+      "default": "Navbar Card integration enabled."
+    }
+  }
+}

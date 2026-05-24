@@ -1,20 +1,14 @@
-"""Navbar Card – Home Assistant integration.
-
-Provides persistent storage for named navbar configurations,
-exposes them via a WebSocket API, and automatically registers
-the navbar-card.js Lovelace resource so users only need a single
-HACS installation (as Integration).
-"""
+"""Navbar Card – Home Assistant integration."""
 from __future__ import annotations
 
 import logging
 from pathlib import Path
 
+import homeassistant.helpers.config_validation as cv
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
 from .store import NavbarConfigStore
@@ -25,8 +19,10 @@ _LOGGER = logging.getLogger(__name__)
 WWW_DIR = Path(__file__).parent / "www"
 CARD_URL = "/navbar_card_static/navbar-card.js"
 
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the Navbar domain (YAML-based bootstrap)."""
     hass.data.setdefault(DOMAIN, {})
     return True
@@ -62,7 +58,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             card_file,
         )
 
-    _LOGGER.info("Navbar Card integration ready (v0.0.10)")
+    _LOGGER.info("Navbar Card integration ready")
     return True
 
 
