@@ -1,0 +1,7 @@
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+
+# Keep dist/ in git so HACS can download the built card without users needing Node
+# dist/   ← intentionally NOT ignored

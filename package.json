@@ -1,0 +1,23 @@
+{
+  "name": "navbar-card",
+  "version": "0.1.0",
+  "description": "Configurable room navigation card for Home Assistant",
+  "keywords": ["home-assistant", "lovelace", "hacs", "custom-card"],
+  "license": "MIT",
+  "scripts": {
+    "build": "rollup -c rollup.config.mjs",
+    "dev": "rollup -c rollup.config.mjs --watch",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "rollup": "^4.18.0",
+    "tslib": "^2.6.3",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "lit": "^3.1.4"
+  }
+}
