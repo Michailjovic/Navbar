@@ -18,6 +18,7 @@
  */
 
 import { LitElement, html, css, nothing, type TemplateResult } from "lit";
+import { createRef, ref, type Ref } from "lit/directives/ref.js";
 import { customElement, property, state } from "lit/decorators.js";
 
 import type {
@@ -75,6 +76,13 @@ export class NavbarCardEditor extends LitElement {
   @state() private _error: string | null = null;
 
   private _saveTimer?: ReturnType<typeof setTimeout>;
+  private _slotRefs = new Map<number, Ref<HTMLTextAreaElement>>();
+  private _slotEditing = new Set<number>();
+
+  private _getSlotRef(idx: number): Ref<HTMLTextAreaElement> {
+    if (!this._slotRefs.has(idx)) this._slotRefs.set(idx, createRef<HTMLTextAreaElement>());
+    return this._slotRefs.get(idx)!;
+  }
 
   // -------------------------------------------------------------------------
   // Lovelace API
@@ -97,6 +105,13 @@ export class NavbarCardEditor extends LitElement {
     if (changed.has("config") && this.hass && !this._loading) {
       void this._loadStoredConfig();
     }
+    // Sync slot textarea values (only when not editing)
+    this._slotRefs.forEach((r, idx) => {
+      if (r.value && !this._slotEditing.has(idx)) {
+        const slot = this._stored?.slots?.bottom?.[idx];
+        if (slot) r.value.value = this._slotToYaml(slot as Record<string, unknown>);
+      }
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -709,16 +724,20 @@ export class NavbarCardEditor extends LitElement {
               />
             </div>
             <div class="field" style="margin-top:4px;">
-              <label>Raw config (YAML-style properties as JSON)</label>
-              <textarea rows="4" style="
+              <label>YAML config (bez řádku type:)</label>
+              <textarea rows="6" style="
                 width:100%;padding:6px 8px;box-sizing:border-box;
                 background:rgba(var(--rgb-primary-text-color,255,255,255),0.05);
                 border:1px solid rgba(var(--rgb-primary-text-color,255,255,255),0.12);
                 border-radius:6px;color:var(--primary-text-color);font-size:11px;
                 font-family:monospace;resize:vertical;outline:none;
               "
-                .value=${this._slotToJson(slot)}
-                @change=${(e: Event) => this._patchSlotJson(idx, (e.target as HTMLTextAreaElement).value)}
+                ${ref(this._getSlotRef(idx))}
+                @focus=${() => this._slotEditing.add(idx)}
+                @blur=${(e: Event) => {
+                  this._slotEditing.delete(idx);
+                  this._patchSlotJson(idx, (e.target as HTMLTextAreaElement).value);
+                }}
               ></textarea>
             </div>
           </div>
@@ -729,9 +748,21 @@ export class NavbarCardEditor extends LitElement {
     `;
   }
 
-  private _slotToJson(slot: Record<string, unknown>): string {
+  private _slotToYaml(slot: Record<string, unknown>): string {
     const { type: _t, ...rest } = slot;
-    return Object.keys(rest).length ? JSON.stringify(rest, null, 2) : "";
+    if (!Object.keys(rest).length) return "";
+    // Prefer js-yaml if HA loaded it, else JSON fallback
+    const jsyaml = (window as unknown as Record<string, unknown>).jsyaml as { dump?: (v: unknown) => string } | undefined;
+    if (jsyaml?.dump) return jsyaml.dump(rest).trimEnd();
+    return JSON.stringify(rest, null, 2);
+  }
+
+  private _parseYamlOrJson(raw: string): Record<string, unknown> {
+    const trimmed = raw.trim();
+    if (!trimmed) return {};
+    const jsyaml = (window as unknown as Record<string, unknown>).jsyaml as { load?: (v: string) => unknown } | undefined;
+    if (jsyaml?.load) return jsyaml.load(trimmed) as Record<string, unknown>;
+    return JSON.parse(trimmed) as Record<string, unknown>;
   }
 
   private _patchSlot(idx: number, key: string, value: string): void {
@@ -743,11 +774,11 @@ export class NavbarCardEditor extends LitElement {
   private _patchSlotJson(idx: number, raw: string): void {
     const slots = [...(this._stored?.slots?.bottom ?? [])];
     try {
-      const parsed = raw.trim() ? JSON.parse(raw) : {};
+      const parsed = this._parseYamlOrJson(raw);
       slots[idx] = { type: slots[idx].type, ...parsed };
       this._patchStored({ slots: { bottom: slots } });
     } catch {
-      // invalid JSON – ignore, user is still typing
+      // invalid YAML/JSON – ignore
     }
   }
 
@@ -1054,13 +1085,12 @@ export class NavbarCardEditor extends LitElement {
 
       /* Sensors */
       .sensor-row {
-        display: flex;
+        display: grid;
+        grid-template-columns: 1fr auto 60px auto;
         gap: 4px;
         align-items: center;
         margin-bottom: 4px;
       }
-      .sensor-entity { flex: 2; }
-      .sensor-unit { width: 56px; flex-shrink: 0; }
 
       /* Slots */
       .slot-row {
@@ -1097,16 +1127,4 @@ declare global {
     "navbar-card-editor": NavbarCardEditor;
   }
 }
-        border-radius: 4px;
-        color: var(--secondary-text-color);
-        letter-spacing: 0.3px;
-      }
-    `;
-  }
-}
-
-declare global {
-  interface HTMLElementTagNameMap {
-    "navbar-card-editor": NavbarCardEditor;
-  }
-}
+    
