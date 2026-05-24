@@ -27,7 +27,18 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Copy dist to root for HACS
+      - name: Copy JS into integration www/ folder
+        run: cp dist/navbar-card.js custom_components/navbar/www/navbar-card.js
+
+      - name: Commit www/navbar-card.js back to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add custom_components/navbar/www/navbar-card.js
+          git diff --staged --quiet || git commit -m "chore: update navbar-card.js for $(git describe --tags)"
+          git push origin HEAD:main || true
+
+      - name: Copy to root for HACS release asset
         run: cp dist/navbar-card.js navbar-card.js
 
       - name: Create GitHub Release
