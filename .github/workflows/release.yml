@@ -25,8 +25,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Copy dist to root for HACS
+        run: cp dist/navbar-card.js navbar-card.js
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/navbar-card.js
+          files: navbar-card.js
           generate_release_notes: true
