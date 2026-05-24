@@ -1,12 +1,14 @@
 {
   "domain": "navbar",
   "name": "Navbar Card",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "documentation": "https://github.com/Michailjovic/Navbar",
   "issue_tracker": "https://github.com/Michailjovic/Navbar/issues",
   "requirements": [],
   "dependencies": [],
-  "codeowners": ["@Michailjovic"],
+  "codeowners": [
+    "@Michailjovic"
+  ],
   "iot_class": "local_push",
   "config_flow": true,
   "homeassistant": "2024.1.0"
