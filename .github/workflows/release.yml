@@ -47,12 +47,12 @@ jobs:
       - name: Copy JS into integration www/ folder
         run: cp dist/navbar-card.js custom_components/navbar/www/navbar-card.js
 
-      - name: Commit updated files back to repo
+      - name: Commit manifest.json version back to repo
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add custom_components/navbar/www/navbar-card.js custom_components/navbar/manifest.json
-          git diff --staged --quiet || git commit -m "chore: release ${{ steps.version.outputs.VERSION }}"
+          git add custom_components/navbar/manifest.json
+          git diff --staged --quiet || git commit -m "chore: bump manifest version to ${{ steps.version.outputs.VERSION }}"
           git push origin HEAD:main || true
 
       - name: Copy to root for HACS release asset
