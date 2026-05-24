@@ -103,7 +103,10 @@ export class NavbarCard extends LitElement {
       this._stored = result;
       this._loading = false;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const haErr = err as Record<string, unknown>;
+      const msg = err instanceof Error
+        ? err.message
+        : (haErr?.message ? String(haErr.message) : (haErr?.code ? String(haErr.code) : String(err)));
 
       if (this.config.tiles?.length) {
         // Graceful fallback to inline config
@@ -118,7 +121,7 @@ export class NavbarCard extends LitElement {
         this._stored = { tiles: [] };
         this._loading = false;
       } else {
-        this._error = `Backend unavailable: ${msg}. Install the navbar integration or add inline tiles: config.`;
+        this._error = `Backend unavailable (${msg}). Go to Settings → Integrations → Add → "Navbar Card" to enable the backend, or use standalone mode with inline tiles: in the card config.`;
         this._loading = false;
       }
     }
