@@ -399,7 +399,9 @@ export class NavbarCard extends LitElement {
 
             if (typeof el!.setConfig === "function") {
               try {
-                el!.setConfig(slotConfig as Record<string, unknown>);
+                // Strip internal editor-only key before passing to card
+                const { _name: _ignored, ...cardConfig } = slotConfig as Record<string, unknown>;
+                el!.setConfig(cardConfig);
               } catch (e) {
                 console.warn("[navbar-card] slot setConfig failed:", e);
               }

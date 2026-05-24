@@ -169,6 +169,8 @@ export interface SlotsConfig {
 
 export interface SlotItemConfig {
   type: string;
+  /** Optional display label shown only in the editor – stripped before rendering. */
+  _name?: string;
   [key: string]: unknown;
 }
 

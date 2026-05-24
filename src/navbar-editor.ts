@@ -20,6 +20,7 @@
 import { LitElement, html, css, nothing, type TemplateResult } from "lit";
 import { createRef, ref, type Ref } from "lit/directives/ref.js";
 import { customElement, property, state } from "lit/decorators.js";
+import * as jsyaml from "js-yaml";
 
 import type {
   HomeAssistant,
@@ -705,23 +706,28 @@ export class NavbarCardEditor extends LitElement {
         <div class="section-title">Bottom slots</div>
         <span class="hint" style="display:block;margin-bottom:8px;">
           Vlož celý YAML karty (včetně řádku <code>type:</code>).
-          Uloží se při kliknutí mimo pole.
+          Změny se uloží při kliknutí mimo pole.
         </span>
 
         ${slots.map((slot, idx) => html`
           <div class="slot-row">
             <div class="slot-header">
-              <span class="tile-name">${slot.type || "(no type)"}</span>
-              <button class="icon-btn danger" title="Remove"
+              <input
+                type="text"
+                class="slot-name-input"
+                placeholder="Název slotu (jen pro editor)"
+                .value=${slot._name ?? ""}
+                @input=${(e: Event) => this._patchSlotName(idx, (e.target as HTMLInputElement).value)}
+              />
+              <button class="icon-btn danger" title="Odstranit slot"
                 @click=${() => this._deleteSlot(idx)}>✕</button>
             </div>
-            <textarea rows="10" style="
-              width:100%;padding:6px 8px;box-sizing:border-box;margin-top:6px;
-              background:rgba(var(--rgb-primary-text-color,255,255,255),0.05);
-              border:1px solid rgba(var(--rgb-primary-text-color,255,255,255),0.12);
-              border-radius:6px;color:var(--primary-text-color);font-size:11px;
-              font-family:monospace;resize:vertical;outline:none;
-            "
+            <textarea
+              class="slot-yaml"
+              rows="12"
+              spellcheck="false"
+              autocorrect="off"
+              autocapitalize="off"
               ${ref(this._getSlotRef(idx))}
               @focus=${() => this._slotEditing.add(idx)}
               @blur=${(e: Event) => {
@@ -737,33 +743,44 @@ export class NavbarCardEditor extends LitElement {
     `;
   }
 
-  /** Convert stored slot object → full YAML string including type: line */
+  /**
+   * Convert stored slot object → YAML string for display.
+   * Excludes the internal _name field so the user edits only card YAML.
+   */
   private _slotToFullYaml(slot: Record<string, unknown>): string {
-    const jsyaml = (window as unknown as Record<string, unknown>).jsyaml as { dump?: (v: unknown) => string } | undefined;
-    if (jsyaml?.dump) return jsyaml.dump(slot).trimEnd();
-    return JSON.stringify(slot, null, 2);
+    const { _name: _ignored, ...rest } = slot;
+    return jsyaml.dump(rest, { lineWidth: -1 }).trimEnd();
   }
 
-  /** Parse full YAML (with type:) and save */
+  /** Parse full YAML (must contain type:) and save, preserving _name. */
   private _patchSlotFull(idx: number, raw: string): void {
     const trimmed = raw.trim();
     if (!trimmed) return;
     const slots = [...(this._stored?.slots?.bottom ?? [])];
     try {
-      const jsyaml = (window as unknown as Record<string, unknown>).jsyaml as { load?: (v: string) => unknown } | undefined;
-      const parsed = jsyaml?.load
-        ? jsyaml.load(trimmed) as Record<string, unknown>
-        : JSON.parse(trimmed) as Record<string, unknown>;
-      if (!parsed.type) return; // type je povinný
-      slots[idx] = parsed as import("./types").SlotItemConfig;
+      const parsed = jsyaml.load(trimmed) as Record<string, unknown>;
+      if (!parsed || typeof parsed !== "object" || !parsed["type"]) return;
+      // preserve the editor-only name
+      const existingName = slots[idx]?._name;
+      const newSlot = { ...parsed } as import("./types").SlotItemConfig;
+      if (existingName) newSlot._name = existingName;
+      slots[idx] = newSlot;
       this._patchStored({ slots: { bottom: slots } });
     } catch {
       // neplatný YAML – ignoruj
     }
   }
 
+  /** Update only the display name of a slot. */
+  private _patchSlotName(idx: number, name: string): void {
+    const slots = [...(this._stored?.slots?.bottom ?? [])];
+    if (!slots[idx]) return;
+    slots[idx] = { ...slots[idx], _name: name || undefined };
+    this._patchStored({ slots: { bottom: slots } });
+  }
+
   private _addSlot(): void {
-    const bottom = [...(this._stored?.slots?.bottom ?? []), { type: "custom:alert-ticker-card" }];
+    const bottom = [...(this._stored?.slots?.bottom ?? []), { type: "custom:button-card" } as import("./types").SlotItemConfig];
     this._patchStored({ slots: { bottom } });
   }
 
@@ -1082,8 +1099,41 @@ export class NavbarCardEditor extends LitElement {
       .slot-header {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        margin-bottom: 4px;
+        gap: 6px;
+        margin-bottom: 6px;
+      }
+      .slot-name-input {
+        flex: 1;
+        padding: 5px 8px;
+        background: rgba(var(--rgb-primary-text-color,255,255,255),0.05);
+      border: 1px solid rgba(var(--rgb-primary-text-color,255,255,255),0.12);
+        border-radius: 6px;
+        color: var(--primary-text-color);
+        font-size: 13px;
+        box-sizing: border-box;
+        outline: none;
+      }
+      .slot-name-input:focus {
+        border-color: var(--primary-color, #3b82f6);
+      }
+      .slot-yaml {
+        width: 100%;
+        padding: 6px 8px;
+        box-sizing: border-box;
+        background: rgba(var(--rgb-primary-text-color,255,255,255),0.04);
+        border: 1px solid rgba(var(--rgb-primary-text-color,255,255,255),0.12);
+        border-radius: 6px;
+        color: var(--primary-text-color);
+        font-size: 11px;
+        font-family: monospace;
+        line-height: 1.5;
+        resize: vertical;
+        outline: none;
+        display: block;
+      }
+      .slot-yaml:focus {
+        border-color: var(--primary-color, #3b82f6);
+        background: rgba(var(--rgb-primary-text-color,255,255,255),0.06);
       }
 
       /* Saving badge */
@@ -1107,4 +1157,3 @@ declare global {
     "navbar-card-editor": NavbarCardEditor;
   }
 }
-    
